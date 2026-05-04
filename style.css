@@ -1,0 +1,44 @@
+body {
+  font-family: Arial, sans-serif;
+  text-align: center;
+  background: #f2f2f2;
+}
+
+#board {
+  display: grid;
+  grid-template-columns: repeat(6, 60px);
+  width: 360px;
+  margin: 20px auto;
+  border: 3px solid black;
+}
+
+.cell {
+  width: 60px;
+  height: 60px;
+  font-size: 36px;
+  line-height: 60px;
+  cursor: pointer;
+}
+
+.white {
+  background: #fff;
+}
+
+.black {
+  background: #999;
+}
+
+.invalid {
+  background: #ff6b6b !important;
+}
+
+#status {
+  font-weight: bold;
+  margin-top: 10px;
+}
+
+button {
+  padding: 8px 15px;
+  margin-top: 10px;
+  cursor: pointer;
+}
