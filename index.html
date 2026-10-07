@@ -2,20 +2,177 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <title>6x6 N-Queen Game</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>NQueen-Game · Backtracking Visualizer</title>
+  <meta name="description" content="An interactive N-Queens game that visualizes the backtracking algorithm step by step.">
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 48 48'%3E%3Crect width='48' height='48' rx='10' fill='%234f46e5'/%3E%3Cpath d='M8 15L14 31L16 13L21 30L24 11L27 30L32 13L34 31L40 15L37 38H11Z' fill='white'/%3E%3Crect x='9' y='39' width='30' height='5' rx='2' fill='white'/%3E%3C/svg%3E">
   <link rel="stylesheet" href="style.css">
+  <script>
+    // Apply the saved theme before first paint to avoid a flash.
+    (function () {
+      try {
+        var saved = localStorage.getItem('nqueen.theme');
+        var dark = saved ? saved === 'dark' : window.matchMedia('(prefers-color-scheme: dark)').matches;
+        document.documentElement.setAttribute('data-theme', dark ? 'dark' : 'light');
+      } catch (e) { document.documentElement.setAttribute('data-theme', 'light'); }
+    })();
+  </script>
 </head>
 <body>
 
-<h2>6 × 6 N-Queen Game</h2>
-<p>Place 6 queens so that none attack each other</p>
+<svg width="0" height="0" style="position:absolute" aria-hidden="true" focusable="false">
+  <defs>
+    <symbol id="queen" viewBox="0 0 48 48">
+      <circle cx="8" cy="12" r="3"/><circle cx="16" cy="9" r="3"/><circle cx="24" cy="7" r="3"/>
+      <circle cx="32" cy="9" r="3"/><circle cx="40" cy="12" r="3"/>
+      <path d="M8 15L14 31L16 13L21 30L24 11L27 30L32 13L34 31L40 15L37 38H11Z"/>
+      <rect x="9" y="39" width="30" height="5" rx="2.5"/>
+    </symbol>
+    <symbol id="i-x" viewBox="0 0 24 24"><path d="M6 6l12 12M18 6L6 18" fill="none" stroke="currentColor" stroke-width="3.2" stroke-linecap="round"/></symbol>
+    <symbol id="i-warn" viewBox="0 0 24 24"><path d="M12 3L22 20H2Z" fill="currentColor"/><path d="M12 9v5M12 16.6v.4" stroke="#fff" stroke-width="2.4" stroke-linecap="round"/></symbol>
+    <symbol id="i-star" viewBox="0 0 24 24"><path d="M12 2l2.9 6.6 7.1.6-5.4 4.7 1.7 7-6.3-3.8-6.3 3.8 1.7-7L2 9.2l7.1-.6Z" fill="currentColor"/></symbol>
+    <symbol id="i-q" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10" fill="currentColor"/><path d="M9 9.5a3 3 0 1 1 4.4 2.6c-.9.5-1.4 1-1.4 2M12 16.6v.4" fill="none" stroke="#fff" stroke-width="2.2" stroke-linecap="round"/></symbol>
+    <symbol id="i-check" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10" fill="currentColor"/><path d="M7 12.5l3.4 3.4L17 9" fill="none" stroke="#fff" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+    <symbol id="i-dot" viewBox="0 0 24 24"><circle cx="12" cy="12" r="4" fill="currentColor"/></symbol>
+  </defs>
+</svg>
 
-<div id="board"></div>
+<a class="skip" href="#board">Skip to board</a>
 
-<p id="status"></p>
+<header class="top">
+  <div class="brand">
+    <svg class="logo" aria-hidden="true"><use href="#queen"/></svg>
+    <div>
+      <h1>NQueen-Game</h1>
+      <p class="tagline">Play N-Queens, then watch backtracking solve it.</p>
+    </div>
+  </div>
+  <button id="themeBtn" class="btn ghost" type="button" aria-label="Switch to dark theme">
+    <span id="themeIcon" aria-hidden="true">🌙</span><span class="hide-sm" id="themeLabel">Dark</span>
+  </button>
+</header>
 
-<button onclick="resetGame()">Reset Game</button>
+<main class="layout">
+  <!-- ============ PLAY ============ -->
+  <section class="play" aria-labelledby="play-title">
+    <h2 id="play-title" class="sr-only">Game board</h2>
 
-<script src="script.js"></script>
+    <div class="toolbar">
+      <label class="field">
+        <span>Board size</span>
+        <select id="sizeSelect" aria-label="Board size"></select>
+      </label>
+      <label class="check">
+        <input type="checkbox" id="attackToggle" checked>
+        <span>Show attacked squares</span>
+      </label>
+    </div>
+
+    <div class="stats-row" role="group" aria-label="Game statistics">
+      <div class="pill"><span class="k">Time</span><span class="v" id="timeStat">00:00</span></div>
+      <div class="pill"><span class="k">Moves</span><span class="v" id="movesStat">0</span></div>
+      <div class="pill"><span class="k">Queens</span><span class="v" id="queensStat">0 / 8</span></div>
+      <div class="pill"><span class="k" id="bestLabel">Best 8×8</span><span class="v" id="bestStat">—</span></div>
+    </div>
+
+    <div class="board-wrap">
+      <div id="board" class="board" role="grid" aria-label="Chess board" aria-describedby="boardMessage"></div>
+    </div>
+
+    <p id="boardMessage" class="message" role="status" aria-live="polite">Place a queen on any square. No two queens may attack each other.</p>
+
+    <div class="actions">
+      <button id="undoBtn" class="btn" type="button" disabled>↶ Undo</button>
+      <button id="redoBtn" class="btn" type="button" disabled>↷ Redo</button>
+      <button id="hintBtn" class="btn accent" type="button">💡 Hint</button>
+      <button id="resetBtn" class="btn" type="button">Reset</button>
+    </div>
+
+    <div id="winCard" class="card win" hidden role="region" aria-label="Puzzle solved">
+      <h3>🎉 Solution Complete!</h3>
+      <dl class="grid4">
+        <div><dt>Board</dt><dd id="winSize">8 × 8</dd></div>
+        <div><dt>Moves</dt><dd id="winMoves">0</dd></div>
+        <div><dt>Time</dt><dd id="winTime">00:00</dd></div>
+        <div><dt>Best</dt><dd id="winBest">00:00</dd></div>
+      </dl>
+      <p id="winNote" class="note"></p>
+    </div>
+
+    <ul class="legend" aria-label="Board legend">
+      <li><span class="sw sw-queen"><svg><use href="#queen"/></svg></span>Queen</li>
+      <li><span class="sw sw-attacked"><svg><use href="#i-x"/></svg></span>Attacked</li>
+      <li><span class="sw sw-safe"><svg><use href="#i-dot"/></svg></span>Safe</li>
+      <li><span class="sw sw-conflict"><svg><use href="#i-warn"/></svg></span>Conflict</li>
+      <li><span class="sw sw-hint"><svg><use href="#i-star"/></svg></span>Hint</li>
+    </ul>
+  </section>
+
+  <!-- ============ SOLVER ============ -->
+  <aside class="side">
+    <section class="card" aria-labelledby="solver-title">
+      <h2 id="solver-title">Backtracking visualizer</h2>
+      <p class="note">The solver runs the real algorithm on its own board; your game is kept safe and comes back on Reset.</p>
+
+      <div class="actions solver-actions">
+        <button id="playBtn" class="btn accent" type="button">▶ Play</button>
+        <button id="pauseBtn" class="btn" type="button" disabled>⏸ Pause</button>
+        <button id="stepBtn" class="btn" type="button">⏭ Step</button>
+        <button id="solverResetBtn" class="btn" type="button" disabled>⟲ Reset</button>
+      </div>
+
+      <label class="speed">
+        <span>Speed</span>
+        <input type="range" id="speed" min="1" max="10" value="5" aria-label="Solver speed" aria-valuetext="Speed 5 of 10">
+        <output id="speedOut">5</output>
+      </label>
+
+      <p id="solverStatus" class="solver-status" role="status" aria-live="polite">Press Play or Step to start.</p>
+
+      <dl class="grid4 solver-stats" aria-label="Live solver statistics">
+        <div><dt>Nodes explored</dt><dd id="statNodes">0</dd></div>
+        <div><dt>Placements</dt><dd id="statPlacements">0</dd></div>
+        <div><dt>Backtracks</dt><dd id="statBacktracks">0</dd></div>
+        <div><dt>Current row</dt><dd id="statRow">–</dd></div>
+      </dl>
+
+      <div id="resultCard" class="result" hidden role="region" aria-label="Solver result">
+        <h3 id="resultTitle">Solution Found!</h3>
+        <dl class="result-list">
+          <div><dt>Board</dt><dd id="resSize">8 × 8</dd></div>
+          <div><dt>Nodes explored</dt><dd id="resNodes">0</dd></div>
+          <div><dt>Placements</dt><dd id="resPlacements">0</dd></div>
+          <div><dt>Backtracks</dt><dd id="resBacktracks">0</dd></div>
+          <div><dt>Solver time</dt><dd id="resTime">0 ms</dd></div>
+        </dl>
+        <p class="note">Solver time counts only the algorithm's own computation, not the animation delay.</p>
+      </div>
+    </section>
+
+    <section class="card explain" aria-labelledby="explain-title">
+      <h2 id="explain-title">How it works</h2>
+      <h3>What is N-Queens?</h3>
+      <p>Place <strong>N</strong> queens on an N×N chessboard so that no two queens attack each other: no shared row, column or diagonal.</p>
+      <h3>How does backtracking work?</h3>
+      <ol>
+        <li>Place a queen in the current row.</li>
+        <li>Check whether it is safe.</li>
+        <li>If it is, move on to the next row.</li>
+        <li>If no column in a row works, <strong>backtrack</strong>.</li>
+        <li>Remove the previous queen.</li>
+        <li>Try its next column.</li>
+      </ol>
+    </section>
+  </aside>
+</main>
+
+<footer class="foot">
+  <a href="https://github.com/ShriyaP1966/NQueen-Game">Source on GitHub</a> · MIT License
+</footer>
+
+<script src="js/board.js"></script>
+<script src="js/solver.js"></script>
+<script src="js/game.js"></script>
+<script src="js/ui.js"></script>
 </body>
 </html>
